@@ -5,6 +5,7 @@ import threading
 import time
 from queue import Empty
 
+
 ### parallel execution
 def withdraw_amount(output_queue, balance, amount):
     output_queue.put(f"Withdrawal of ${amount} started")
@@ -12,11 +13,13 @@ def withdraw_amount(output_queue, balance, amount):
     balance.value -= amount
     output_queue.put(f"Withdrawal of ${amount} completed. Updated Balance: ${balance.value}")
 
+
 def deposit_amount(output_queue, balance, amount):
     output_queue.put(f"Deposit of ${amount} started")
     time.sleep(2)
     balance.value += amount
     output_queue.put(f"Deposit of ${amount} completed. Updated Balance: ${balance.value}")
+
 
 def transfer_amount(output_queue, balance, amount):
     output_queue.put(f"Transfer of ${amount} started")
@@ -24,14 +27,17 @@ def transfer_amount(output_queue, balance, amount):
     balance.value -= amount  # Assuming transfer is a withdrawal
     output_queue.put(f"Transfer of ${amount} completed. Updated Balance: ${balance.value}")
 
+
 def loan_amount(output_queue, balance, amount):
     output_queue.put(f"Loan application for ${amount} started")
     time.sleep(1)
     balance.value += amount
     output_queue.put(f"Loan application for ${amount} completed. Updated Balance: ${balance.value}")
 
+
 def view_balance(output_queue, balance):
     output_queue.put(f"View Balance. Current Balance: ${balance.value}")
+
 
 def run_parallel_processes(num_processes, functions_to_run, output_queue, balance):
     processes = []
@@ -47,9 +53,11 @@ def run_parallel_processes(num_processes, functions_to_run, output_queue, balanc
         if function_id in function_map:
             amount = 0
             if function_id != 5:
-                amount = st.number_input(f"Enter the amount for Operation {function_map[function_id].__name__}:", min_value=1, value=1, step=1)
+                amount = st.number_input(f"Enter the amount for Operation {function_map[function_id].__name__}:",
+                                         min_value=1, value=1, step=1)
                 amounts.append(amount)
-                process = multiprocessing.Process(target=function_map[function_id], args=(output_queue, balance, amount))
+                process = multiprocessing.Process(target=function_map[function_id],
+                                                  args=(output_queue, balance, amount))
             else:
                 amounts.append(0)  # View Balance doesn't require an amount
                 process = multiprocessing.Process(target=function_map[function_id], args=(output_queue, balance))
@@ -79,42 +87,29 @@ def run_parallel_processes(num_processes, functions_to_run, output_queue, balanc
         # Display success message
         st.success("All processes completed")
 
-def run_parallel_threads(num_processes, functions_to_run, output_queue, balance):
+
+def run_parallel_threads(num_threads, functions_to_run, output_queue, balance):
+    lock = threading.Lock()
+
     threads = []
     function_map = {
-        1: withdraw_amount,
-        2: deposit_amount,
-        3: transfer_amount,
-        4: loan_amount,
-        5: view_balance,
+        1: withdraw_with_lock,
+        2: deposit_with_lock,
     }
-    amounts = []  # Store amounts for each function
 
-    for function_id in functions_to_run:
+    for function_id, amount in functions_to_run:
         if function_id in function_map:
-            amount = 0
-            if function_id != 5:
-                amount = st.number_input(f"Enter the amount for Operation {function_map[function_id].__name__}:", min_value=1, value=1, step=1)
-                amounts.append(amount)
-                thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance, amount))
-            else:
-                amounts.append(0)  # View Balance doesn't require an amount
-                thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance))
-
+            thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance, amount, lock))
             threads.append(thread)
         else:
             output_queue.put(f"Invalid function number: {function_id}")
 
-    # Display the button after inputting amounts
-    if st.button("Execute Processes"):
-        # Start threads
+    if st.button("Execute Threads"):
         for thread in threads:
             thread.start()
 
-        # Wait for threads to finish
         for thread in threads:
             thread.join()
-
         # Check if there are additional messages in the queue
         try:
             while True:
@@ -123,26 +118,55 @@ def run_parallel_threads(num_processes, functions_to_run, output_queue, balance)
         except queue.Empty:
             pass
 
-        # Display success message
-        st.success("All threads completed")
+        st.success("All threads started")
+
 
 ### Synchronization
+#multiprocessing
 def withdraw_with_lock(output_queue, balance, lock, amount):
-    output_queue.put(f"Withdrawal of ${amount} started")
     with lock:
-        balance.value -= amount
-    output_queue.put(f"Withdrawal of ${amount} completed. Updated Balance: ${balance.value}")
+        current_balance = balance.value
+        output_queue.put(f"Withdrawal of ${str(amount)} started")
+        time.sleep(3)
+        current_balance -= amount
+        balance.value = current_balance
+        output_queue.put(f"Withdrawal of ${str(amount)} completed. Updated Balance: ${balance.value}")
+
 
 def deposit_with_lock(output_queue, balance, lock, amount):
-    output_queue.put(f"Deposit of ${amount} started")
     with lock:
-        balance.value += amount
-    output_queue.put(f"Deposit of ${amount} completed. Updated Balance: ${balance.value}")
+        current_balance = balance.value
+        output_queue.put(f"Deposit of ${str(amount)} started")
+        time.sleep(2)
+        current_balance += amount
+        balance.value = current_balance
+        output_queue.put(f"Deposit of ${str(amount)} completed. Updated Balance: ${balance.value}")
+#threading
+
+def thread_withdraw_with_lock(output_queue, balance, lock, amount):
+    with lock:
+        current_balance = balance
+        output_queue.put(f"Withdrawal of ${str(amount)} started")
+        time.sleep(3)
+        current_balance -= amount
+        balance = current_balance
+        output_queue.put(f"Withdrawal of ${str(amount)} completed. Updated Balance: ${str(balance)}")
+
+def thread_deposit_with_lock(output_queue, balance, lock, amount):
+    with lock:
+        current_balance = balance
+        output_queue.put(f"Deposit of ${str(amount)} started")
+        time.sleep(2)
+        current_balance += amount
+        balance = current_balance
+        output_queue.put(f"Deposit of ${str(amount)} completed. Updated Balance: ${str(balance)}")
+
 
 ### server process
 def run_server_processes(processes, output_queue, balance, result_list):
     st.write(result_list)
     st.success("All processes completed")
+
 
 def deposit(balance, result_list, deposit_amount):
     current_balance = balance.value
@@ -150,9 +174,11 @@ def deposit(balance, result_list, deposit_amount):
     balance.value = current_balance
     result_list.append({'action': 'deposit', 'amount': deposit_amount, 'balance': balance.value})
 
+
 def print_balance(balance, result_list):
     result_list.append({'balance': balance.value})
     st.write(f"Current Balance: {balance.value}")
+
 
 ### pipe
 
@@ -160,17 +186,19 @@ def deposit_and_check_balance(conn, result_list, deposit_amount):
     current_balance = conn.recv()
     current_balance += deposit_amount
     conn.send(current_balance)
-    result_list.append({'Note': 'Please be informed that a deposit operation is being performed on your account.','Deposit Amount': deposit_amount})
-
-
+    result_list.append({'Note': 'Please be informed that a deposit operation is being performed on your account.',
+                        'Deposit Amount': deposit_amount})
 
 
 def initialize_balance(conn, result_list):
     initial_balance = 1000.0  # Initial balance for the bank account
     conn.send(initial_balance)
     result_list.append({'balance': initial_balance})
+
+
 def print_balance_ui(balance):
     st.write(f"Current Balance: {balance}")
+
 
 # Modify the print_balance function to update the UI within the main process
 def print_balance(conn, result_list):
@@ -188,6 +216,7 @@ def print_balance(conn, result_list):
     # Send a termination signal to the main process
     conn.send("END")
 
+
 # Modify the run_processes function to remove the st.write calls
 def run_processes(processes, result_list, balance):
     try:
@@ -204,9 +233,11 @@ def deposit_to_account(user_balance, deposit_amount, output_queue):
     updated_balance = user_balance + deposit_amount
     output_queue.put(updated_balance)
 
+
 def withdraw_to_account(user_balance, withdraw_amount, output_queue):
     updated_balance = user_balance - withdraw_amount
     output_queue.put(updated_balance)
+
 
 if __name__ == "__main__":
     st.title("Welcome to our Banking System")
@@ -214,7 +245,8 @@ if __name__ == "__main__":
              "We are delighted to have you as a valued member. Our commitment is to"
              " provide you with seamless and innovative financial operations tailored "
              "to meet your unique needs. Thank you for choosing us.")
-    execution_mode = st.selectbox("Select the execution module you want to perform the tasks on:", ["multiprocessing", "threading"])
+    execution_mode = st.selectbox("Select the execution module you want to perform the tasks on:",
+                                  ["multiprocessing", "threading"])
 
     function_map = {
         1: withdraw_amount,
@@ -258,7 +290,8 @@ if __name__ == "__main__":
                 account_balance = manager.Value('d', initial_balance)
                 result_list = manager.list()
 
-                deposit_amount = st.number_input("Enter the deposit amount:", value=0)  # User enters the deposit amount directly
+                deposit_amount = st.number_input("Enter the deposit amount:",
+                                                 value=0)  # User enters the deposit amount directly
 
                 if st.button("Confirm Deposit"):
                     # Process 1: Deposit money into the account
@@ -307,10 +340,12 @@ if __name__ == "__main__":
                 result_list = manager.list()
                 parent_conn, child_conn = multiprocessing.Pipe()
 
-                deposit_amount = st.number_input("Enter the deposit amount:", value=0)  # User enters the deposit amount directly
+                deposit_amount = st.number_input("Enter the deposit amount:",
+                                                 value=0)  # User enters the deposit amount directly
 
                 p0 = multiprocessing.Process(target=initialize_balance, args=(parent_conn, result_list))
-                p1 = multiprocessing.Process(target=deposit_and_check_balance, args=(parent_conn, result_list, deposit_amount))
+                p1 = multiprocessing.Process(target=deposit_and_check_balance,
+                                             args=(parent_conn, result_list, deposit_amount))
                 p2 = multiprocessing.Process(target=print_balance, args=(parent_conn, result_list))
 
                 processes = [p0, p1, p2]
@@ -325,7 +360,49 @@ if __name__ == "__main__":
                         process.join()
 
                     st.success("All processes completed")
+        elif synchronization == "Synchronization between processes and race condition problems":
+            lock = multiprocessing.Lock()
 
+            # Get initial balance from the user
+            initial_balance = st.number_input("Enter the initial balance:", min_value=0, value=1000, step=1)
+
+            # Initialize multiprocessing manager, output queue, and balance
+            with multiprocessing.Manager() as manager:
+                output_queue = manager.Queue()
+                balance = multiprocessing.Value('i', initial_balance)  # Initial user balance
+
+                # Run two withdrawal threads with lock
+                withdraw_processes = []
+                for _ in range(2):
+                    withdraw = multiprocessing.Process(target=withdraw_with_lock, args=(output_queue, balance, lock, 1))
+                    withdraw_processes.append(withdraw)
+                    withdraw.start()
+
+                # Run two deposit threads with lock
+                deposit_processes = []
+                for _ in range(2):
+                    deposit = multiprocessing.Process(target=deposit_with_lock, args=(output_queue, balance, lock, 1))
+                    deposit_processes.append(deposit)
+                    deposit.start()
+
+                # Wait for all withdrawal threads to finish
+                for withdraw_thread in withdraw_processes:
+                    withdraw_thread.join()
+
+                # Wait for all deposit threads to finish
+                for deposit_thread in deposit_processes:
+                    deposit_thread.join()
+
+                # Check if there are additional messages in the queue
+                try:
+                    while True:
+                        output = output_queue.get_nowait()
+                        st.write(output)
+                except queue.Empty:
+                    pass
+
+                # Display the final balance to the user
+                st.success(f"The final balance after performing the operations: ${balance.value}")
 
 
     else:
@@ -357,37 +434,42 @@ if __name__ == "__main__":
                         output = output_queue.get()
                         processes_output.append(output)
                         st.write(output)
-        elif synchronization == "Synchronization between processes and race condition problems":
+        else:
             lock = threading.Lock()
+            output_queue = queue.Queue()
 
-            # Get initial balance from the user
             initial_balance = st.number_input("Enter the initial balance:", min_value=0, value=1000, step=1)
+            balance = initial_balance
 
-            # Initialize multiprocessing manager, output queue, and balance
-            with threading.Manager() as manager:
-                output_queue = manager.Queue()
-                balance = threading.Value('i', initial_balance)  # Initial user balance
+            output_queue = queue.Queue()
 
-                # Run two withdrawal processes with lock
-                for _ in range(2):
-                    withdraw = threading.Thread(target=withdraw_with_lock,
-                                                               args=(output_queue, balance, lock, 1))
-                    withdraw.start()
-                    withdraw.join()
+            withdraw_threads = []
+            for _ in range(2):
+                withdraw = threading.Thread(target=thread_withdraw_with_lock, args=(output_queue, balance, lock, 1))
+                withdraw_threads.append(withdraw)
+                withdraw.start()
 
-                # Run two deposit processes with lock
-                for _ in range(2):
-                    deposit = threading.Thread(target=deposit_with_lock,
-                                                              args=(output_queue, balance, lock, 1))
-                    deposit.start()
-                    deposit.join()
+            deposit_threads = []
+            for _ in range(2):
+                deposit = threading.Thread(target=thread_deposit_with_lock, args=(output_queue, balance, lock, 1))
+                deposit_threads.append(deposit)
+                deposit.start()
 
-                # Check if there are additional messages in the queue
-                try:
-                    while True:
-                        output = output_queue.get_nowait()
-                        st.write(output)
-                except Empty:
-                    pass
-                # Display the final balance to the user
-                st.success(f"The final balance after performing the operations: {balance.value}")
+
+            # Wait for all withdrawal threads to finish
+            for withdraw_thread in withdraw_threads:
+                withdraw_thread.join()
+
+            # Wait for all deposit threads to finish
+            for deposit_thread in deposit_threads:
+                deposit_thread.join()
+
+            # Check if there are additional messages in the queue
+            try:
+                while not output_queue.empty():
+                    output = output_queue.get_nowait()
+                    st.write(output)
+            except queue.Empty:
+                pass
+            # Display the final balance to the user
+            st.success(f"The final balance after performing the operations: {balance}")
