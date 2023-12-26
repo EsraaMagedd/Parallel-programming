@@ -88,42 +88,27 @@ def run_parallel_processes(num_processes, functions_to_run, output_queue, balanc
         st.success("All processes completed")
 
 
+
 def run_parallel_threads(num_processes, functions_to_run, output_queue, balance):
     threads = []
     function_map = {
-        1: withdraw_amount,
-        2: deposit_amount,
-        3: transfer_amount,
-        4: loan_amount,
-        5: view_balance,
+        1: withdraw_with_lock,
+        2: deposit_with_lock,
     }
-    amounts = []  # Store amounts for each function
 
-    for function_id in functions_to_run:
+    for function_id, amount in functions_to_run:
         if function_id in function_map:
-            amount = 0
-            if function_id != 5:
-                amount = st.number_input(f"Enter the amount for Operation {function_map[function_id].__name__}:", min_value=1, value=1, step=1)
-                amounts.append(amount)
-                thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance, amount))
-            else:
-                amounts.append(0)  # View Balance doesn't require an amount
-                thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance))
-
+            thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance, amount, lock))
             threads.append(thread)
         else:
             output_queue.put(f"Invalid function number: {function_id}")
 
-    # Display the button after inputting amounts
-    if st.button("Execute Processes"):
-        # Start threads
+    if st.button("Execute Threads"):
         for thread in threads:
             thread.start()
 
-        # Wait for threads to finish
         for thread in threads:
             thread.join()
-
         # Check if there are additional messages in the queue
         try:
             while True:
@@ -132,8 +117,8 @@ def run_parallel_threads(num_processes, functions_to_run, output_queue, balance)
         except queue.Empty:
             pass
 
-        # Display success message
-        st.success("All threads completed")
+        st.success("All threads started")
+
 
 ### Synchronization
 #multiprocessing
