@@ -88,28 +88,42 @@ def run_parallel_processes(num_processes, functions_to_run, output_queue, balanc
         st.success("All processes completed")
 
 
-def run_parallel_threads(num_threads, functions_to_run, output_queue, balance):
-    lock = threading.Lock()
-
+def run_parallel_threads(num_processes, functions_to_run, output_queue, balance):
     threads = []
     function_map = {
-        1: withdraw_with_lock,
-        2: deposit_with_lock,
+        1: withdraw_amount,
+        2: deposit_amount,
+        3: transfer_amount,
+        4: loan_amount,
+        5: view_balance,
     }
+    amounts = []  # Store amounts for each function
 
-    for function_id, amount in functions_to_run:
+    for function_id in functions_to_run:
         if function_id in function_map:
-            thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance, amount, lock))
+            amount = 0
+            if function_id != 5:
+                amount = st.number_input(f"Enter the amount for Operation {function_map[function_id].__name__}:", min_value=1, value=1, step=1)
+                amounts.append(amount)
+                thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance, amount))
+            else:
+                amounts.append(0)  # View Balance doesn't require an amount
+                thread = threading.Thread(target=function_map[function_id], args=(output_queue, balance))
+
             threads.append(thread)
         else:
             output_queue.put(f"Invalid function number: {function_id}")
 
-    if st.button("Execute Threads"):
+    # Display the button after inputting amounts
+    if st.button("Execute Processes"):
+        # Start threads
         for thread in threads:
             thread.start()
 
+        # Wait for threads to finish
         for thread in threads:
             thread.join()
+
         # Check if there are additional messages in the queue
         try:
             while True:
@@ -118,8 +132,8 @@ def run_parallel_threads(num_threads, functions_to_run, output_queue, balance):
         except queue.Empty:
             pass
 
-        st.success("All threads started")
-
+        # Display success message
+        st.success("All threads completed")
 
 ### Synchronization
 #multiprocessing
@@ -410,7 +424,7 @@ if __name__ == "__main__":
                                        ["Parallel Execution",
                                         "Synchronization between threads and race condition problems"])
         if synchronization == "Parallel Execution":
-            num_processes = st.number_input("Enter the number of threads to run in parallel:", min_value=1,
+            num_threads = st.number_input("Enter the number of threads to run in parallel:", min_value=1,
                                             max_value=5,
                                             value=1, step=1)
             functions_to_run = []
@@ -419,7 +433,7 @@ if __name__ == "__main__":
                 if st.checkbox(f"Function {i}: {function_map[i].__name__}", key=f"func_checkbox_{i}"):
                     functions_to_run.append(i)
 
-            if len(functions_to_run) != num_processes:
+            if len(functions_to_run) != num_threads:
                 st.error("Error: The number of selected operations must match the number of threads.")
             else:
                 initial_balance = st.number_input("Enter the initial balance:", min_value=0, value=1000, step=1)
@@ -428,7 +442,7 @@ if __name__ == "__main__":
                     balance = multiprocessing.Value('i', initial_balance)  # Initial user balance
                     processes_output = []
                     # Run the parallel processes
-                    run_parallel_threads(num_processes, functions_to_run, output_queue, balance)
+                    run_parallel_threads(num_threads, functions_to_run, output_queue, balance)
                     # Retrieve outputs from the queue
                     while not output_queue.empty():
                         output = output_queue.get()
