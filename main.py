@@ -181,13 +181,11 @@ def run_server_processes(processes, output_queue, balance, result_list):
     st.write(result_list)
     st.success("All processes completed")
 
-
 def deposit(balance, result_list, deposit_amount):
     current_balance = balance.value
     current_balance += deposit_amount
     balance.value = current_balance
     result_list.append({'action': 'deposit', 'amount': deposit_amount})
-
 
 def _print_balance(balance, result_list):
     result_list.append({'Current balance': balance.value})
@@ -202,12 +200,10 @@ def deposit_and_check_balance(conn, result_list, deposit_amount):
     result_list.append({'Note': 'Please be informed that a deposit operation is being performed on your account.',
                         'Deposit Amount': deposit_amount})
 
-
 def initialize_balance(conn, result_list):
     initial_balance = 1000.0  # Initial balance for the bank account
     conn.send(initial_balance)
     result_list.append({'balance': initial_balance})
-
 
 def print_balance_ui(balance):
     st.write(f"Current Balance: {balance}")
@@ -253,7 +249,7 @@ def withdraw_to_account(user_balance, withdraw_amount, output_queue):
 
 
 if __name__ == "__main__":
-    st.title("Welcome to our Banking System")
+    st.title("Welcome to our Banking System 🏦")
     st.write("Welcome to our Banking System, where your financial journey begins and your aspirations thrive! "
              "We are delighted to have you as a valued member. Our commitment is to"
              " provide you with seamless and innovative financial operations tailored "
