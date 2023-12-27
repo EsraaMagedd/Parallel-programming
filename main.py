@@ -186,12 +186,11 @@ def deposit(balance, result_list, deposit_amount):
     current_balance = balance.value
     current_balance += deposit_amount
     balance.value = current_balance
-    result_list.append({'action': 'deposit', 'amount': deposit_amount, 'balance': balance.value})
+    result_list.append({'action': 'deposit', 'amount': deposit_amount})
 
 
-def print_balance(balance, result_list):
-    result_list.append({'balance': balance.value})
-    st.write(f"Current Balance: {balance.value}")
+def _print_balance(balance, result_list):
+    result_list.append({'Current balance': balance.value})
 
 
 ### pipe
@@ -269,7 +268,6 @@ if __name__ == "__main__":
         4: loan_amount,
         5: view_balance,
     }
-
     if execution_mode == "multiprocessing":
         synchronization = st.selectbox("Select the task you want to do:",
                                        ["Parallel Execution",
@@ -312,7 +310,7 @@ if __name__ == "__main__":
                     p1 = multiprocessing.Process(target=deposit, args=(account_balance, result_list, deposit_amount))
 
                     # Process 2: Print the current balance
-                    p2 = multiprocessing.Process(target=initialize_balance, args=(account_balance, result_list))
+                    p2 = multiprocessing.Process(target=_print_balance, args=(account_balance, result_list))
 
                     p1.start()
                     p2.start()
@@ -339,14 +337,13 @@ if __name__ == "__main__":
                 withdraw_amount = st.number_input("Enter the withdrawal amount:", value=0)
                 p = multiprocessing.Process(target=withdraw_to_account, args=(user_balance, withdraw_amount, q))
             else:
-                st.write("Invalid choice. Please enter 1, 2, or 3.")
+                st.write("Invalid choice. Please enter 1, or 2.")
                 p = multiprocessing.Process(target=withdraw_to_account, args=(user_balance, withdraw_amount, q))
             p.start()
             p.join()
 
             # Retrieve and update the balance for the next operation
             user_balance = q.get()
-
             st.write(f"Updated balance after the operation: {user_balance}")
         elif synchronization == "Communication between processes using Pipe":
             balance = 0
